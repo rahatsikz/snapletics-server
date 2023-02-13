@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
@@ -17,10 +18,34 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+function verifyJWT(req, res, send) {
+  const authHeaders = req.headers.authorization;
+  if (!authHeaders) {
+    return res.status(401).send({ message: "Unauthorized" });
+  }
+  const token = authHeaders.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+    if (err) {
+      return res.status(401).send({ message: "Unauthorized" });
+    }
+    req.decoded = decoded;
+    send();
+  });
+}
+
 async function run() {
   try {
     const serviceCollection = client.db("Snapletics").collection("services");
     const reviewCollection = client.db("Snapletics").collection("reviews");
+
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      console.log(req.body);
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "20m",
+      });
+      res.send({ token });
+    });
 
     app.get("/servicebylimit", async (req, res) => {
       const query = {};
@@ -54,7 +79,12 @@ async function run() {
       const review = await cursor.toArray();
       res.send(review);
     });
-    app.get("/reviews", async (req, res) => {
+    app.get("/reviews", verifyJWT, async (req, res) => {
+      const decoded = req.decoded;
+      console.log(decoded);
+      if (decoded.email !== req.query.email) {
+        res.status(403).send({ message: "unauthorized" });
+      }
       let query = {};
       if (req.query.email) {
         query = { email: req.query.email };
