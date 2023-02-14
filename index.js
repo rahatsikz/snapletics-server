@@ -40,7 +40,7 @@ async function run() {
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
-      console.log(req.body);
+      // console.log(req.body);
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "20m",
       });
@@ -75,13 +75,13 @@ async function run() {
     app.get("/reviews/:id", async (req, res) => {
       const id = req.params.id;
       const query = { service: id };
-      const cursor = reviewCollection.find(query);
+      const cursor = reviewCollection.find(query).sort({ dateAdded: -1 });
       const review = await cursor.toArray();
       res.send(review);
     });
     app.get("/reviews", verifyJWT, async (req, res) => {
       const decoded = req.decoded;
-      console.log(decoded);
+      // console.log(decoded);
       if (decoded.email !== req.query.email) {
         res.status(403).send({ message: "unauthorized" });
       }
